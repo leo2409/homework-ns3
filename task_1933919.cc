@@ -131,8 +131,8 @@ main(int argc, char* argv[])
 
     // installo le connessioni al livello di collegamento.
     NetDeviceContainer stellaPtp5; 
-    stellaPtp5.Add(ptp1.Install(ptpStar5Nodes.Get(0), ptpStar5Nodes.Get(1)));
-    stellaPtp5.Add(ptp1.Install(ptpStar5Nodes.Get(0), ptpStar5Nodes.Get(2)));
+    stellaPtp5.Add(ptp_5_20.Install(ptpStar5Nodes.Get(0), ptpStar5Nodes.Get(1)));
+    stellaPtp5.Add(ptp_5_20.Install(ptpStar5Nodes.Get(0), ptpStar5Nodes.Get(2)));
 
     Node n8,n9;
     
@@ -162,6 +162,9 @@ main(int argc, char* argv[])
     // ------------------------- STELLA PTP CENTRO ROUTER 4 E SPOKES ROUTER 5,2,10 -------------------------
     NetDeviceContainer stellaPtp4;
     //stellaPtp4.Add(ptpcentralNodes.Get(0), wifiApNode.Get(0));
+
+
+    // aoooooo speriamo funzioni
 
 
 
