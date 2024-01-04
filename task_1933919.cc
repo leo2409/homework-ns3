@@ -144,8 +144,8 @@ main(int argc, char* argv[])
     n69 = NodeContainer(ptpStar1Nodes.Get(1),n9); */
 
     NetDeviceContainer stellaPtp6; 
-    stellaPtp6.Add(ptp1.Install(ptpStar5Nodes.Get(0), &n8));
-    stellaPtp6.Add(ptp1.Install(ptpStar5Nodes.Get(0), &n9));
+    stellaPtp6.Add(ptp_5_20.Install(ptpStar5Nodes.Get(0), &n8));
+    stellaPtp6.Add(ptp_5_20.Install(ptpStar5Nodes.Get(0), &n9));
 
     // ------------------------- PTP 3 E 4 -------------------------
 
