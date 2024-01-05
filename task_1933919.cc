@@ -41,27 +41,19 @@ main(int argc, char* argv[])
 
     // ========================= COSTRUZIONE TOPOLOGIA =========================
 
-    // ------------------------- CSMA ROUTER 2 NODE 0-1 -------------------------
+    // ------------------------- CSMA ROUTER 2 NODI 0-1 -------------------------
     // CSMA STELLA ROUTER 2 e server 0 e 1
-    CsmaHelper csma1;       
-    csma1.SetChannelAttribute("DataRate", StringValue("10Mbps"));
-    csma1.SetChannelAttribute("Delay", StringValue("200ms"));
+    CsmaHelper csma_10_200;       
+    csma_10_200.SetChannelAttribute("DataRate", StringValue("10Mbps"));
+    csma_10_200.SetChannelAttribute("Delay", StringValue("200ms"));
 
     // creo un hub router 2 e 2 spoke nodi 0 e 1
-    CsmaStarHelper csmaStar(2, csma1);
-    
-    NodeContainer csmaStarNodes;
-    csmaStarNodes.Add(csmaStar.GetHub());           //nodo n2
-    csmaStarNodes.Add(csmaStar.GetSpokeNode(0));    //nodo n0
-    csmaStarNodes.Add(csmaStar.GetSpokeNode(1));    //nodo n1
+    CsmaStarHelper csmaStar_2(2, csma_10_200);
 
-    // installo le connessioni al livello di collegamento. Questo dispositivo deve essere usato per assegnare ip e stack di rete
-    NetDeviceContainer csmaStella1 = csma1.Install(csmaStarNodes);
-
-    // ------------------------- WIFI ROUTER 10 NODE 11-19 -------------------------
+    // ------------------------- WIFI ROUTER 10 NODI 11-19 -------------------------
 
     //  WIFI: ROUTER-WIFI 10 E NODI (LAPTOP) 11-19
-    // acces point wifi router nodo 10
+    // access point wifi router nodo 10
     NodeContainer wifiApNode;
     wifiApNode.Create(1);
 
@@ -115,57 +107,65 @@ main(int argc, char* argv[])
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(wifiApNode);
 
-    // ------------------------- ALBERO NODE 5-9 -------------------------
+    // ------------------------- ALBERO NODI 5-9 -------------------------
 
     PointToPointHelper ptp_5_20;
     ptp_5_20.SetDeviceAttribute("DataRate", StringValue("5Mbps"));
     ptp_5_20.SetChannelAttribute("Delay", StringValue("20ms"));
 
-    // stella ptp 5,6,7
-    PointToPointStarHelper ptpStar5(2, ptp_5_20);
-
-    NodeContainer ptpStar5Nodes;
-    ptpStar5Nodes.Add(ptpStar5.GetHub());           //nodo n5
-    ptpStar5Nodes.Add(ptpStar5.GetSpokeNode(0));    //nodo n6
-    ptpStar5Nodes.Add(ptpStar5.GetSpokeNode(1));    //nodo n7
-
-    // installo le connessioni al livello di collegamento.
-    NetDeviceContainer stellaPtp5; 
-    stellaPtp5.Add(ptp_5_20.Install(ptpStar5Nodes.Get(0), ptpStar5Nodes.Get(1)));
-    stellaPtp5.Add(ptp_5_20.Install(ptpStar5Nodes.Get(0), ptpStar5Nodes.Get(2)));
-
-    Node n8,n9;
+    NodeContainer tree;
+    tree.Create(5); 
+    /*
+        n5 -> 0
+        n6 -> 1
+        n7 -> 2
+        n8 -> 3
+        n9 -> 4
+    */
     
-    /* NodeContainer n8, n9;
-    n8.Create(1);
-    n9.Create(1);
-    NodeContainer n68, n69;
-    n68 = NodeContainer(ptpStar1Nodes.Get(1),n8);
-    n69 = NodeContainer(ptpStar1Nodes.Get(1),n9); */
+    NetDeviceContainer treePtp;
+    treePtp.Add(ptp_5_20.Install(tree.Get(0), tree.Get(1))); // n5 --- n6
+    treePtp.Add(ptp_5_20.Install(tree.Get(0), tree.Get(2))); // n5 --- n7
+    treePtp.Add(ptp_5_20.Install(tree.Get(1), tree.Get(3))); // n6 --- n8
+    treePtp.Add(ptp_5_20.Install(tree.Get(1), tree.Get(4))); // n6 --- n9
 
-    NetDeviceContainer stellaPtp6; 
-    stellaPtp6.Add(ptp_5_20.Install(ptpStar5Nodes.Get(0), &n8));
-    stellaPtp6.Add(ptp_5_20.Install(ptpStar5Nodes.Get(0), &n9));
-
-    // ------------------------- PTP 3 E 4 -------------------------
+    // ------------------------- NODI CENTRALI -------------------------
 
     NodeContainer centralNodes;
     centralNodes.Create(2);
+    /*
+        n3 -> 0
+        n4 -> 1
+    */
 
-    PointToPointHelper ptp2;
-    ptp2.SetDeviceAttribute("DataRate", StringValue("10Mbps"));
-    ptp2.SetChannelAttribute("Delay", StringValue("200ms"));
+    PointToPointHelper ptp_100_20;
+    ptp_100_20.SetDeviceAttribute("DataRate", StringValue("100Mbps"));
+    ptp_100_20.SetChannelAttribute("Delay", StringValue("20ms"));
 
-    NetDeviceContainer ptp3_4;
-    ptp3_4.Add(ptp2.Install(centralNodes.Get(0),centralNodes.Get(1)));
+    PointToPointHelper ptp_10_200;
+    ptp_10_200.SetDeviceAttribute("DataRate", StringValue("10Mbps"));
+    ptp_10_200.SetChannelAttribute("Delay", StringValue("200ms"));
 
-    // ------------------------- STELLA PTP CENTRO ROUTER 4 E SPOKES ROUTER 5,2,10 -------------------------
-    NetDeviceContainer stellaPtp4;
-    //stellaPtp4.Add(ptpcentralNodes.Get(0), wifiApNode.Get(0));
+    NetDeviceContainer centralNodesPtp;
+    centralNodesPtp.Add(ptp_10_200.Install(centralNodes.Get(0), centralNodes.Get(1)));  // n3 --- n4
 
+    centralNodesPtp.Add(ptp_100_20.Install(centralNodes.Get(0), tree.Get(0)));          // n3 --- n5
+    centralNodesPtp.Add(ptp_100_20.Install(centralNodes.Get(0), wifiApNode.Get(0)));          // n3 --- n10
 
-    // aoooooo speriamo funzioni
-    // prova
+    centralNodesPtp.Add(ptp_100_20.Install(centralNodes.Get(1), csmaStar_2.GetHub()));  // n4 --- n2
+    centralNodesPtp.Add(ptp_100_20.Install(centralNodes.Get(1), tree.Get(0)));          // n4 --- n5
+    centralNodesPtp.Add(ptp_100_20.Install(centralNodes.Get(1), wifiApNode.Get(0)));    // n4 --- n10
+
+    // ========================= SERVIZI DI RETE =========================
+
+    InternetStackHelper stack;
+
+    csmaStar_2.InstallStack(stack);
+    stack.Install(tree);
+    stack.Install(centralNodes);
+    stack.Install(wifiApNode);
+    stack.Install(wifiStaNodes);
+
 
 
 
