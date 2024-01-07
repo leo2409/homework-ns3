@@ -10,7 +10,7 @@
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/mobility-module.h"
 #include "ns3/ssid.h"
-#include "point-to-point-star.h"
+//#include "point-to-point-star.h"
 
 using namespace ns3;
 using namespace std;
@@ -27,15 +27,20 @@ main(int argc, char* argv[])
     bool enableRtsCts = false;
 
     CommandLine cmd(__FILE__);
+    //cin >> studentId;
     cmd.AddValue("studentId", "Stringa della Matricola Referente", studentId);
     cmd.AddValue("enableRtsCts", "Forza l'uso del meccanismo RtsCts", enableRtsCts);
     //variabile standard
     cmd.AddValue("verbose", "Tell echo applications to log if true", verbose);
     cmd.AddValue("tracing", "Enable pcap tracing", tracing);
 
+    cmd.Parse(argc, argv);
+    
+    cout << studentId << endl;
+
     // Passaggio matricola come parametro, se non è corretta il programma deve interrompersi
     if (studentId.compare(matricola)){
-        //NS_LOG_UNCOND("Matricola Errata");
+        NS_LOG_UNCOND("Matricola Errata");
         return 0;
     }
 
@@ -49,6 +54,13 @@ main(int argc, char* argv[])
 
     // creo un hub router 2 e 2 spoke nodi 0 e 1
     CsmaStarHelper csmaStar_2(2, csma_10_200);
+
+    NodeContainer cmsaStar_2Nodes;
+    cmsaStar_2Nodes.Add(csmaStar_2.GetHub());
+    cmsaStar_2Nodes.Add(csmaStar_2.GetSpokeNode(0));
+    cmsaStar_2Nodes.Add(csmaStar_2.GetSpokeNode(1));
+
+    NetDeviceContainer csmaStar2 = csma_10_200.Install(cmsaStar_2Nodes);
 
     // ------------------------- WIFI ROUTER 10 NODI 11-19 -------------------------
 
@@ -165,6 +177,137 @@ main(int argc, char* argv[])
     stack.Install(centralNodes);
     stack.Install(wifiApNode);
     stack.Install(wifiStaNodes);
+
+
+    // ========================= ASSEGNAZIONE INDIRIZZI IP =========================
+
+    Ipv4AddressHelper address;
+
+    // per i nodi n0, n1 ed n2 usiamo una maschera con 8 slot
+    address.SetBase("10.1.1.0", "255.255.255.248");
+    Ipv4InterfaceContainer csmaStarInterface;
+    csmaStarInterface = address.Assign(csmaStar2);
+
+    // per la rete centrale
+    address.SetBase("10.1.1.8", "255.255.255.248");
+    Ipv4InterfaceContainer centralStarInterface;
+    centralStarInterface = address.Assign(centralNodesPtp);
+
+    // per l'albero da n5 - n9
+    address.SetBase("10.1.1.16", "255.255.255.248");
+    Ipv4InterfaceContainer treeContainer;
+    treeContainer = address.Assign(treePtp);
+
+    //per la rete wi-fi n10 - n19
+    address.SetBase("10.1.1.24", "255.255.255.248");
+    address.Assign(staDevices);
+    address.Assign(apDevices);
+
+
+    //  PORTA
+
+    uint16_t port = 9;//  TODO
+
+    // ========================= LIVELLO APPLICATIVO CLIENT =========================
+
+    // Source 0
+    OnOffHelper source0("ns3::UdpSockerFactory", InetSocketAddress(csmaStarInterface.GetAddress(1), port));
+
+    // Nodo 11
+    uint16_t nBytes = 1341;
+    source0.SetAttribute("PacketSize", UintegerValue(nBytes));
+    ApplicationContainer s0App1 = source0.Install(wifiStaNodes.Get(0));
+    s0App1.Start(Seconds(0.36));
+    s0App1.Stop(Seconds(15.0));
+
+    //Nodo 6
+    nBytes = 1431;
+    source0.SetAttribute("PacketSize", UintegerValue(nBytes));
+    ApplicationContainer s0App2 = source0.Install(tree.Get(1));
+    s0App2.Start(Seconds(3.2));
+    s0App2.Stop(Seconds(15.0));
+    // End Source 0
+
+    // Source 1
+    OnOffHelper source1("ns3::UdpSocketFactory", InetSocketAddress(csmaStarInterface.GetAddress(3), port));  // TODO rivedere questo 3?
+
+    // Nodo 19
+    nBytes = 1567;
+    source1.SetAttribute("PacketSize", UintegerValue(nBytes));
+    ApplicationContainer s1App1 = source1.Install(wifiStaNodes.Get(0));
+    s1App1.Start(Seconds(3.55));
+    s1App1.Stop(Seconds(15.0));
+    // End Source 1
+
+    
+    // ========================= LIVELLO APPLICATIVO SERVER =========================
+
+    PacketSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), port));
+
+    // Server 0
+    ApplicationContainer server0 = sink.Install(cmsaStar_2Nodes.Get(0));
+    server0.Start(Seconds(0.0));
+    // Server 0
+
+    // Server 1
+    ApplicationContainer server1 = sink.Install(cmsaStar_2Nodes.Get(1));
+    server1.Start(Seconds(0.0));
+    // Server 1
+
+    // Porta
+
+    uint16_t porta = 9;
+
+    // ========================= LIVELLO APPLICATIVO ECHO =========================
+    
+    UdpEchoServerHelper echoServer(porta);
+
+    // Server 3
+    ApplicationContainer echoApp = echoServer.Install(centralNodes.Get(0));
+    echoApp.Start(Seconds(1.0));
+    echoApp.Stop(Seconds(15.0));
+
+    // Client 8
+    UdpEchoClientHelper echoClient(treeContainer.GetAddress(3), porta);
+    echoClient.SetAttribute("MaxPackets", UintegerValue(250));
+    echoClient.SetAttribute("Interval", TimeValue(MicroSeconds(20.0)));
+    echoClient.SetAttribute("PacketSize", UintegerValue(1029));
+
+    ApplicationContainer clientApps = echoClient.Install(tree.Get(3));
+    
+    echoClient.SetFill(clientApps.Get(0), "Edoardo, Toderi, 1933819, Andrea, Guida, 1948214, Leonardo, Brunetti, 1939837");
+
+    clientApps.Start(Seconds(2.0));
+    clientApps.Stop(Seconds(15.0));
+
+
+
+
+    NS_LOG_UNCOND("Popolazione Tabelle Routing");
+
+    Ipv4GlobalRoutingHelper::PopulateRoutingTables();
+
+    NS_LOG_UNCOND("Tracing");
+    
+    if(tracing){
+        phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
+        phy.EnablePcap("router-wifi-nodo-10", apDevices.Get(0), true);
+
+        csma_10_200.EnablePcap("switch-nodo-2", csmaStar2.Get(0), true);
+
+        ptp_100_20.EnablePcap("switch-nodo-4", centralNodesPtp.Get(1), true, true);
+
+        ptp_5_20.EnablePcap("switch-node-5", treePtp.Get(0), true, true);
+    }
+    
+    std::cout << "Inizio Simulazione" << std::endl; 
+    Simulator::Run();
+    //Simulator::Stop(Seconds(15.0)); 
+	std::cout << "Fine Simulazione" << std::endl;
+    Simulator::Destroy();
+
+    return 0;
+
 
 
 
