@@ -35,8 +35,6 @@ main(int argc, char* argv[])
     cmd.AddValue("tracing", "enable pcap", tracing);
     cmd.Parse(argc, argv);
 
-    cout << tracing << endl;
-
     // Passaggio matricola come parametro, se non è corretta il programma deve interrompersi
     if (studentId.compare(matricola)){
         NS_LOG_UNCOND("Matricola Errata");
@@ -65,8 +63,6 @@ main(int argc, char* argv[])
     NetDeviceContainer starCsma;
     starCsma = csma_10_200.Install(starNodes);
 
-
-/*
     // ------------------------- WIFI ROUTER 10 NODI 11-19 -------------------------
 
     //  WIFI: ROUTER-WIFI 10 E NODI (LAPTOP) 11-19
@@ -123,7 +119,7 @@ main(int argc, char* argv[])
                                   "LayoutType",
                                   StringValue("RowFirst"));
                                   
-      Qui definisco che ogni nodo si può muovere per un raggio quadrato con 30 m di lato 
+    // Qui definisco che ogni nodo si può muovere per un raggio quadrato con 30 m di lato 
     mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
                               "Bounds",
                               RectangleValue(Rectangle(-15, 15, -15, 15)));
@@ -148,12 +144,11 @@ main(int argc, char* argv[])
    Ptr<Node> n8 =  tree.Get(3);
    Ptr<Node> n9 =  tree.Get(4);
     
-    NetDeviceContainer treePtp;
-    treePtp.Add(ptp_5_20.Install(n5, n6)); // n5 --- n6
-    treePtp.Add(ptp_5_20.Install(n5, n7)); // n5 --- n7
-    treePtp.Add(ptp_5_20.Install(n6, n8)); // n6 --- n8
-    treePtp.Add(ptp_5_20.Install(n6, n9)); // n6 --- n9
-    */
+    NetDeviceContainer treePtp_n5_n6, treePtp_n5_n7, treePtp_n6_n8, treePtp_n6_n9;
+    treePtp_n5_n6.Add(ptp_5_20.Install(n5, n6)); // n5 --- n6
+    treePtp_n5_n7.Add(ptp_5_20.Install(n5, n7)); // n5 --- n7
+    treePtp_n6_n8.Add(ptp_5_20.Install(n6, n8)); // n6 --- n8
+    treePtp_n6_n9.Add(ptp_5_20.Install(n6, n9)); // n6 --- n9
     // ------------------------- NODI CENTRALI -------------------------
 
     NodeContainer centralNodes;
@@ -166,20 +161,21 @@ main(int argc, char* argv[])
     ptpHelper.SetDeviceAttribute("DataRate", StringValue("10Mbps"));
     ptpHelper.SetChannelAttribute("Delay", StringValue("200ms"));
 
-    NetDeviceContainer centralNodesPtp;
-    centralNodesPtp.Add(ptpHelper.Install(n4, n3));  // n3 --- n4
+    NetDeviceContainer ptp_n3_n4, ptp_n4_n2, ptp_n3_n5, ptp_n4_n5;
+    ptp_n3_n4.Add(ptpHelper.Install(n4, n3));  // n3 --- n4
     
+    ptpHelper.SetDeviceAttribute("DataRate", StringValue("100Mbps"));
+    ptpHelper.SetChannelAttribute("Delay", StringValue("20ms"));
+    
+    ptp_n3_n5.Add(ptpHelper.Install(n3, n5));          // n3 --- n5
     /*
-    centralNodesPtp.Add(ptp_100_20.Install(n3, n5));          // n3 --- n5
     centralNodesPtp.Add(ptp_100_20.Install(n3, n10));    // n3 --- n10
     */
 
-    ptpHelper.SetDeviceAttribute("DataRate", StringValue("100Mbps"));
-    ptpHelper.SetChannelAttribute("Delay", StringValue("20ms"));
-    centralNodesPtp.Add(ptpHelper.Install(n4, n2));  // n4 --- n2
+    ptp_n4_n2.Add(ptpHelper.Install(n4, n2));  // n4 --- n2
 
-    /* centralNodesPtp.Add(ptp_100_20.Install(n4, n5));          // n4 --- n5
-    centralNodesPtp.Add(ptp_100_20.Install(n4, n10));    // n4 --- n10 */
+     ptp_n4_n5.Add(ptpHelper.Install(n4, n5));          // n4 --- n5
+    /*centralNodesPtp.Add(ptp_100_20.Install(n4, n10));    // n4 --- n10 */
     // ========================= SERVIZI DI RETE =========================
 
     NS_LOG_UNCOND("Servizi di rete");
@@ -187,9 +183,7 @@ main(int argc, char* argv[])
     InternetStackHelper stack;
 
     stack.Install(starNodes);
-    /*
     stack.Install(tree);
-    */
     stack.Install(centralNodes);
     /*
     stack.Install(wifiApNode);
@@ -201,19 +195,40 @@ main(int argc, char* argv[])
     NS_LOG_UNCOND("Indirizzi IP");
 
     Ipv4AddressHelper address;
-    address.SetBase("10.1.1.0","255.255.255.248");
-    Ipv4InterfaceContainer starInterface;
+    Ipv4InterfaceContainer starInterface, centralInterface, treeInterface;
+    address.SetBase("10.1.1.0","/30");
+    centralInterface.Add(address.Assign(ptp_n3_n4));
+    address.SetBase("10.1.1.4","/30");
+    centralInterface.Add(address.Assign(ptp_n4_n2));
+    address.SetBase("10.1.1.8","/30");
+    centralInterface.Add(address.Assign(ptp_n3_n5));
+    address.SetBase("10.1.1.12","/30");
+    centralInterface.Add(address.Assign(ptp_n4_n5));
+
+    address.SetBase("10.1.1.16","/30");
+    treeInterface.Add(address.Assign(treePtp_n5_n6));
+    address.SetBase("10.1.1.20","/30");
+    treeInterface.Add(address.Assign(treePtp_n5_n7));
+    address.SetBase("10.1.1.24","/30");
+    treeInterface.Add(address.Assign(treePtp_n5_n6));
+    address.SetBase("10.1.1.28","/30");
+    treeInterface.Add(address.Assign(treePtp_n6_n8));
+    address.SetBase("10.1.1.32","/30");
+    treeInterface.Add(address.Assign(treePtp_n6_n9));
+
+    address.SetBase("10.1.2.0","255.255.255.248");
     starInterface = address.Assign(starCsma);
-    address.SetBase("10.1.1.8","255.255.255.248");
-    Ipv4InterfaceContainer centralNodesInterface;
-    centralNodesInterface = address.Assign(centralNodesPtp);
-
-
-    cout << n0->GetObject<Ipv4>()->GetAddress(1,0) << endl;
-    cout << n1->GetObject<Ipv4>()->GetAddress(1,0) << endl;
-    cout << n2->GetObject<Ipv4>()->GetAddress(1,0) << endl;
-    cout << n3->GetObject<Ipv4>()->GetAddress(1,0) << endl;
-    cout << n4->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    
+    cout << "n0: " << n0->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n1: " << n1->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n2: " << n2->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n3: " << n3->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n4: " << n4->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n5: " << n5->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n6: " << n6->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n7: " << n7->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n8: " << n8->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n9: " << n9->GetObject<Ipv4>()->GetAddress(1,0) << endl;
 
     /*
     // per la rete centrale
@@ -282,16 +297,16 @@ main(int argc, char* argv[])
 
     UdpEchoServerHelper echoServer(9);
 
-    ApplicationContainer serverApps = echoServer.Install(n0);
+    ApplicationContainer serverApps = echoServer.Install(n9);
     serverApps.Start(Seconds(1.0));
     serverApps.Stop(Seconds(10.0));
 
-    UdpEchoClientHelper echoClient(n0->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 9);
+    UdpEchoClientHelper echoClient(n9->GetObject<Ipv4>()->GetAddress(1,0).GetLocal(), 9);
     echoClient.SetAttribute("MaxPackets", UintegerValue(1));
     echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
     echoClient.SetAttribute("PacketSize", UintegerValue(1024));
 
-    ApplicationContainer clientApps = echoClient.Install(n3);
+    ApplicationContainer clientApps = echoClient.Install(n0);
     clientApps.Start(Seconds(2.0));
     clientApps.Stop(Seconds(10.0));
 
@@ -357,9 +372,9 @@ main(int argc, char* argv[])
     if (tracing) {
         csma_10_200.EnablePcapAll("rete_csma",true);
     }
-    cout << "Inizio Simulazione" << std::endl; 
+    cout << "Inizio Simulazione" << std::endl;
+    Simulator::Stop(Seconds(15.0));
     Simulator::Run();
-    //Simulator::Stop(Seconds(15.0)); 
 	cout << "Fine Simulazione" << std::endl;
     Simulator::Destroy();
 
