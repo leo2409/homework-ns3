@@ -161,21 +161,17 @@ main(int argc, char* argv[])
     ptpHelper.SetDeviceAttribute("DataRate", StringValue("10Mbps"));
     ptpHelper.SetChannelAttribute("Delay", StringValue("200ms"));
 
-    NetDeviceContainer ptp_n3_n4, ptp_n4_n2, ptp_n3_n5, ptp_n4_n5;
+    NetDeviceContainer ptp_n3_n4, ptp_n4_n2, ptp_n3_n5, ptp_n4_n5, ptp_n3_n10, ptp_n4_n10;
     ptp_n3_n4.Add(ptpHelper.Install(n4, n3));  // n3 --- n4
     
     ptpHelper.SetDeviceAttribute("DataRate", StringValue("100Mbps"));
     ptpHelper.SetChannelAttribute("Delay", StringValue("20ms"));
     
-    ptp_n3_n5.Add(ptpHelper.Install(n3, n5));          // n3 --- n5
-    /*
-    centralNodesPtp.Add(ptp_100_20.Install(n3, n10));    // n3 --- n10
-    */
-
-    ptp_n4_n2.Add(ptpHelper.Install(n4, n2));  // n4 --- n2
-
-     ptp_n4_n5.Add(ptpHelper.Install(n4, n5));          // n4 --- n5
-    /*centralNodesPtp.Add(ptp_100_20.Install(n4, n10));    // n4 --- n10 */
+    ptp_n3_n5.Add(ptpHelper.Install(n3, n5));   // n3 --- n5
+    ptp_n3_n10.Add(ptpHelper.Install(n3,n10));  // n3 --- n10
+    ptp_n4_n10.Add(ptpHelper.Install(n4, n10)); // n4 --- n10
+    ptp_n4_n2.Add(ptpHelper.Install(n4, n2));   // n4 --- n2
+    ptp_n4_n5.Add(ptpHelper.Install(n4, n5));  // n4 --- n5
     // ========================= SERVIZI DI RETE =========================
 
     NS_LOG_UNCOND("Servizi di rete");
@@ -185,17 +181,15 @@ main(int argc, char* argv[])
     stack.Install(starNodes);
     stack.Install(tree);
     stack.Install(centralNodes);
-    /*
     stack.Install(wifiApNode);
     stack.Install(wifiStaNodes);
-    */
 
     // ========================= ASSEGNAZIONE INDIRIZZI IP =========================
 
     NS_LOG_UNCOND("Indirizzi IP");
 
     Ipv4AddressHelper address;
-    Ipv4InterfaceContainer starInterface, centralInterface, treeInterface;
+    Ipv4InterfaceContainer starInterface, centralInterface, treeInterface, wifiInterface;
     address.SetBase("10.1.1.0","/30");
     centralInterface.Add(address.Assign(ptp_n3_n4));
     address.SetBase("10.1.1.4","/30");
@@ -204,20 +198,29 @@ main(int argc, char* argv[])
     centralInterface.Add(address.Assign(ptp_n3_n5));
     address.SetBase("10.1.1.12","/30");
     centralInterface.Add(address.Assign(ptp_n4_n5));
-
     address.SetBase("10.1.1.16","/30");
-    treeInterface.Add(address.Assign(treePtp_n5_n6));
+    centralInterface.Add(address.Assign(ptp_n3_n10));
     address.SetBase("10.1.1.20","/30");
-    treeInterface.Add(address.Assign(treePtp_n5_n7));
-    address.SetBase("10.1.1.24","/30");
+    centralInterface.Add(address.Assign(ptp_n4_n10));
+
+    address.SetBase("10.1.2.0","/30");
     treeInterface.Add(address.Assign(treePtp_n5_n6));
-    address.SetBase("10.1.1.28","/30");
+    address.SetBase("10.1.2.4","/30");
+    treeInterface.Add(address.Assign(treePtp_n5_n7));
+    address.SetBase("10.1.2.8","/30");
+    treeInterface.Add(address.Assign(treePtp_n5_n6));
+    address.SetBase("10.1.2.12","/30");
     treeInterface.Add(address.Assign(treePtp_n6_n8));
-    address.SetBase("10.1.1.32","/30");
+    address.SetBase("10.1.2.16","/30");
     treeInterface.Add(address.Assign(treePtp_n6_n9));
 
-    address.SetBase("10.1.2.0","255.255.255.248");
+    address.SetBase("10.1.3.0","/29");
     starInterface = address.Assign(starCsma);
+
+    address.SetBase("10.1.4.0","/28");
+    wifiInterface.Add(address.Assign(staDevices));
+    wifiInterface.Add(address.Assign(apDevices));
+
     
     cout << "n0: " << n0->GetObject<Ipv4>()->GetAddress(1,0) << endl;
     cout << "n1: " << n1->GetObject<Ipv4>()->GetAddress(1,0) << endl;
@@ -229,34 +232,16 @@ main(int argc, char* argv[])
     cout << "n7: " << n7->GetObject<Ipv4>()->GetAddress(1,0) << endl;
     cout << "n8: " << n8->GetObject<Ipv4>()->GetAddress(1,0) << endl;
     cout << "n9: " << n9->GetObject<Ipv4>()->GetAddress(1,0) << endl;
-
-    /*
-    // per la rete centrale
-    address.SetBase("10.1.1.0", "255.255.255.248");
-    Ipv4InterfaceContainer centralInterface;
-    centralInterface = address.Assign(centralNodesPtp);
-
-    // per i nodi n0, n1 ed n2 usiamo una maschera con 8 slot
-    address.SetBase("10.1.1.8", "255.255.255.248");
-    Ipv4InterfaceContainer csmaStarInterface;
-    csmaStarInterface = address.Assign(starCsma);
-    */
-
-    /*
-    // per l'albero da n5 - n9
-    address.SetBase("10.1.3.0", "255.255.255.0");
-    Ipv4InterfaceContainer treeInterface;
-    treeInterface = address.Assign(treePtp);
-
-    //per la rete wi-fi n10 - n19
-    address.SetBase("10.1.4.0", "255.255.255.0");
-    address.Assign(staDevices);
-    address.Assign(apDevices);
-    */
-
-    //  PORTA
-
-    //uint16_t port = 9;
+    cout << "n10: " << n10->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n11: " << n11->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n12: " << n12->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n13: " << n13->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n14: " << n14->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n15: " << n15->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n16: " << n16->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n17: " << n17->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n18: " << n18->GetObject<Ipv4>()->GetAddress(1,0) << endl;
+    cout << "n19: " << n19->GetObject<Ipv4>()->GetAddress(1,0) << endl;
 
     
     // ========================= LIVELLO APPLICATIVO CLIENT =========================
@@ -306,7 +291,7 @@ main(int argc, char* argv[])
     echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
     echoClient.SetAttribute("PacketSize", UintegerValue(1024));
 
-    ApplicationContainer clientApps = echoClient.Install(n0);
+    ApplicationContainer clientApps = echoClient.Install(n19);
     clientApps.Start(Seconds(2.0));
     clientApps.Stop(Seconds(10.0));
 
